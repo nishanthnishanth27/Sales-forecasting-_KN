@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sales Forecasting System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0e1623;
+    --card: #131e2e;
+    --border: #1e2d42;
+    --accent: #00e5ff;
+    --accent2: #ff6b35;
+    --accent3: #a259ff;
+    --green: #00ff88;
+    --text: #e8f4ff;
+    --muted: #5a7a9a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  /* Grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+  /* HEADER */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .logo-text { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-sub { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 2px; }
+  .badge {
+    font-family: var(--mono); font-size: 0.7rem;
+    background: rgba(0,229,255,0.1); border: 1px solid var(--accent);
+    color: var(--accent); padding: 4px 10px; border-radius: 20px;
+    letter-spacing: 1px;
+  }
+
+  /* STEPS NAV */
+  .steps-nav {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 28px;
+  }
+  .step-btn {
+    font-family: var(--mono); font-size: 0.7rem;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--muted); padding: 6px 12px; border-radius: 6px;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .step-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .step-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+
+  /* PANELS */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    display: none;
+    animation: fadeIn 0.3s ease;
+  }
+  .panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  .panel-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+    padding-bottom: 16px; border-bottom: 1px solid var(--border);
+  }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 0.75rem; font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent3));
+    color: var(--bg); flex-shrink: 0;
+  }
+  .panel-title { font-size: 1.1rem; font-weight: 800; }
+  .panel-desc { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  /* METRICS ROW */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+  }
+  .metric-label { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 1px; margin-bottom: 6px; }
+  .metric-value { font-size: 1.4rem; font-weight: 800; }
+  .metric-value.cyan { color: var(--accent); }
+  .metric-value.orange { color: var(--accent2); }
+  .metric-value.purple { color: var(--accent3); }
+  .metric-value.green { color: var(--green); }
+
+  /* TABLE */
+  .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.72rem; }
+  thead tr { background: var(--surface); }
+  th { padding: 10px 14px; text-align: left; color: var(--muted); letter-spacing: 1px; font-size: 0.65rem; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 14px; border-bottom: 1px solid rgba(30,45,66,0.6); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,229,255,0.03); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; }
+  .tag.ok { background: rgba(0,255,136,0.12); color: var(--green); }
+  .tag.warn { background: rgba(255,107,53,0.12); color: var(--accent2); }
+  .tag.info { background: rgba(0,229,255,0.12); color: var(--accent); }
+
+  /* CHART */
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; position: relative;
+  }
+  .chart-title { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-bottom: 12px; letter-spacing: 1px; }
+  canvas { max-width: 100%; }
+
+  /* MODEL CARDS */
+  .model-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 14px; margin-bottom: 20px; }
+  .model-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .model-card:hover { border-color: var(--accent); }
+  .model-card.best { border-color: var(--green); }
+  .model-name { font-size: 0.95rem; font-weight: 800; margin-bottom: 4px; }
+  .model-desc { font-family: var(--mono); font-size: 0.65rem; color: var(--muted); margin-bottom: 12px; }
+  .model-metric { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.68rem; margin-bottom: 5px; }
+  .model-metric span:last-child { color: var(--accent); }
+  .model-card.best .model-metric span:last-child { color: var(--green); }
+  .best-tag { font-family: var(--mono); font-size: 0.58rem; background: rgba(0,255,136,0.12); color: var(--green); border: 1px solid var(--green); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 8px; }
+
+  /* PROGRESS BAR */
+  .progress-bar { background: var(--border); border-radius: 4px; height: 4px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent3)); transition: width 1s ease; }
+
+  /* BUTTONS */
+  .btn {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 1px;
+    padding: 10px 20px; border-radius: 8px; cursor: pointer;
+    border: none; transition: all 0.2s; font-weight: 700;
+  }
+  .btn-primary { background: var(--accent); color: var(--bg); }
+  .btn-primary:hover { background: #00b8cc; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: #060a10; border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; font-family: var(--mono);
+    font-size: 0.7rem; line-height: 1.7; overflow-x: auto; color: #8da8c0;
+  }
+  .code-block .kw { color: #a259ff; }
+  .code-block .fn { color: #00e5ff; }
+  .code-block .str { color: #00ff88; }
+  .code-block .cm { color: #3a5a7a; }
+
+  /* FEATURE TABLE */
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 10px; margin-bottom: 20px; }
+  .feature-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+    font-family: var(--mono); font-size: 0.68rem;
+  }
+  .feature-item .fi-label { color: var(--muted); font-size: 0.6rem; letter-spacing: 1px; margin-bottom: 4px; }
+  .feature-item .fi-val { color: var(--accent); font-weight: 700; }
+
+  /* GRID 2COL */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media(max-width:700px) { .grid2 { grid-template-columns: 1fr; } }
+
+  /* STATUS INDICATOR */
+  .status-row { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ANOMALY highlight */
+  td.anomaly { color: var(--accent2) !important; font-weight: 700; }
+  td.outlier { color: var(--accent3) !important; }
+
+  /* LOG */
+  .log {
+    background: #060a10; border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; font-family: var(--mono);
+    font-size: 0.68rem; line-height: 1.8; max-height: 180px; overflow-y: auto; color: var(--muted);
+  }
+  .log .log-ok { color: var(--green); }
+  .log .log-warn { color: var(--accent2); }
+  .log .log-info { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">📊</div>
+      <div>
+        <div class="logo-text">SaleForecast.ai</div>
+        <div class="logo-sub">TIME-SERIES INTELLIGENCE SYSTEM</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="status-row"><div class="dot"></div> LIVE SYSTEM</div>
+      <div class="badge">v2.0</div>
+    </div>
+  </header>
+
+  <!-- STEP NAV -->
+  <div class="steps-nav" id="stepsNav">
+    <button class="step-btn active" onclick="showStep(0)">01 / LOAD DATA</button>
+    <button class="step-btn" onclick="showStep(1)">02 / CLEAN</button>
+    <button class="step-btn" onclick="showStep(2)">03 / FEATURES</button>
+    <button class="step-btn" onclick="showStep(3)">04 / SPLIT</button>
+    <button class="step-btn" onclick="showStep(4)">05 / TRAIN</button>
+    <button class="step-btn" onclick="showStep(5)">06 / EVALUATE</button>
+    <button class="step-btn" onclick="showStep(6)">07 / VISUALIZE</button>
+  </div>
+
+  <!-- STEP 1: LOAD DATA -->
+  <div class="panel active" id="panel-0">
+    <div class="panel-header">
+      <div class="step-num">01</div>
+      <div>
+        <div class="panel-title">Load &amp; Explore Sales Dataset</div>
+        <div class="panel-desc">Import · Inspect Structure · Detect Seasonality</div>
+      </div>
+    </div>
+    <div class="metrics" id="step1-metrics"></div>
+    <div class="chart-box" style="margin-bottom:16px;">
+      <div class="chart-title">HISTORICAL SALES — RAW TIME SERIES (2020–2024)</div>
+      <canvas id="rawChart" height="90"></canvas>
+    </div>
+    <div class="table-wrap" id="step1-table"></div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 1: Load & Explore</span>
+<span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+df = pd.<span class="fn">read_csv</span>(<span class="str">'sales_data.csv'</span>, parse_dates=[<span class="str">'date'</span>])
+df.<span class="fn">set_index</span>(<span class="str">'date'</span>, inplace=<span class="kw">True</span>)
+
+<span class="cm"># Basic EDA</span>
+<span class="fn">print</span>(df.<span class="fn">head</span>())       <span class="cm"># First 5 rows</span>
+<span class="fn">print</span>(df.<span class="fn">info</span>())       <span class="cm"># Dtypes, nulls</span>
+<span class="fn">print</span>(df.<span class="fn">describe</span>())   <span class="cm"># Stats summary</span>
+
+<span class="cm"># Plot raw time series</span>
+df[<span class="str">'sales'</span>].<span class="fn">plot</span>(title=<span class="str">'Raw Sales'</span>, figsize=(14,4))
+plt.<span class="fn">show</span>()
+    </div>
+  </div>
+
+  <!-- STEP 2: CLEAN -->
+  <div class="panel" id="panel-1">
+    <div class="panel-header">
+      <div class="step-num">02</div>
+      <div>
+        <div class="panel-title">Handle Missing Values &amp; Outliers</div>
+        <div class="panel-desc">Interpolate · Z-Score Detection · IQR Capping</div>
+      </div>
+    </div>
+    <div class="metrics" id="step2-metrics"></div>
+    <div class="grid2">
+      <div class="chart-box">
+        <div class="chart-title">BEFORE CLEANING — MISSING &amp; OUTLIERS</div>
+        <canvas id="dirtyChart" height="140"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">AFTER CLEANING — INTERPOLATED &amp; CAPPED</div>
+        <canvas id="cleanChart" height="140"></canvas>
+      </div>
+    </div>
+    <div id="outlier-table" style="margin-top:16px;"></div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 2: Clean Data</span>
+<span class="kw">from</span> scipy <span class="kw">import</span> stats
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Fill missing with linear interpolation</span>
+df[<span class="str">'sales'</span>] = df[<span class="str">'sales'</span>].<span class="fn">interpolate</span>(method=<span class="str">'linear'</span>)
+
+<span class="cm"># Detect outliers using Z-score</span>
+z_scores = np.<span class="fn">abs</span>(stats.<span class="fn">zscore</span>(df[<span class="str">'sales'</span>]))
+outliers = df[z_scores > <span class="str">3</span>]
+<span class="fn">print</span>(<span class="str">f"Outliers found: {len(outliers)}"</span>)
+
+<span class="cm"># Cap using IQR method</span>
+Q1 = df[<span class="str">'sales'</span>].<span class="fn">quantile</span>(<span class="str">0.25</span>)
+Q3 = df[<span class="str">'sales'</span>].<span class="fn">quantile</span>(<span class="str">0.75</span>)
+IQR = Q3 - Q1
+df[<span class="str">'sales'</span>] = df[<span class="str">'sales'</span>].<span class="fn">clip</span>(Q1 - <span class="str">1.5</span>*IQR, Q3 + <span class="str">1.5</span>*IQR)
+    </div>
+  </div>
+
+  <!-- STEP 3: FEATURES -->
+  <div class="panel" id="panel-2">
+    <div class="panel-header">
+      <div class="step-num">03</div>
+      <div>
+        <div class="panel-title">Create Time-Based Features</div>
+        <div class="panel-desc">Lag Features · Rolling Averages · Calendar Features</div>
+      </div>
+    </div>
+    <div class="feature-grid" id="feature-grid"></div>
+    <div class="grid2">
+      <div class="chart-box">
+        <div class="chart-title">LAG FEATURES CORRELATION</div>
+        <canvas id="lagChart" height="140"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">ROLLING AVERAGE (7-DAY vs 30-DAY)</div>
+        <canvas id="rollingChart" height="140"></canvas>
+      </div>
+    </div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 3: Feature Engineering</span>
+df[<span class="str">'day_of_week'</span>]  = df.<span class="fn">index</span>.dayofweek
+df[<span class="str">'month'</span>]        = df.<span class="fn">index</span>.month
+df[<span class="str">'quarter'</span>]      = df.<span class="fn">index</span>.quarter
+df[<span class="str">'year'</span>]         = df.<span class="fn">index</span>.year
+df[<span class="str">'week'</span>]         = df.<span class="fn">index</span>.isocalendar().week
+
+<span class="cm"># Lag features</span>
+df[<span class="str">'lag_7'</span>]   = df[<span class="str">'sales'</span>].<span class="fn">shift</span>(<span class="str">7</span>)
+df[<span class="str">'lag_14'</span>]  = df[<span class="str">'sales'</span>].<span class="fn">shift</span>(<span class="str">14</span>)
+df[<span class="str">'lag_30'</span>]  = df[<span class="str">'sales'</span>].<span class="fn">shift</span>(<span class="str">30</span>)
+
+<span class="cm"># Rolling statistics</span>
+df[<span class="str">'roll_7_mean'</span>]  = df[<span class="str">'sales'</span>].<span class="fn">rolling</span>(<span class="str">7</span>).<span class="fn">mean</span>()
+df[<span class="str">'roll_30_mean'</span>] = df[<span class="str">'sales'</span>].<span class="fn">rolling</span>(<span class="str">30</span>).<span class="fn">mean</span>()
+df[<span class="str">'roll_7_std'</span>]   = df[<span class="str">'sales'</span>].<span class="fn">rolling</span>(<span class="str">7</span>).<span class="fn">std</span>()
+df.<span class="fn">dropna</span>(inplace=<span class="kw">True</span>)
+    </div>
+  </div>
+
+  <!-- STEP 4: SPLIT -->
+  <div class="panel" id="panel-3">
+    <div class="panel-header">
+      <div class="step-num">04</div>
+      <div>
+        <div class="panel-title">Split Data — Train &amp; Test Sets</div>
+        <div class="panel-desc">Chronological Split · No Data Leakage</div>
+      </div>
+    </div>
+    <div class="metrics" id="step4-metrics"></div>
+    <div class="chart-box">
+      <div class="chart-title">TRAIN / TEST SPLIT — CHRONOLOGICAL (2020–2023 TRAIN · 2024 TEST)</div>
+      <canvas id="splitChart" height="90"></canvas>
+    </div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 4: Chronological Train/Test Split</span>
+split_date = <span class="str">'2024-01-01'</span>
+
+train = df[df.<span class="fn">index</span> < split_date]
+test  = df[df.<span class="fn">index</span> >= split_date]
+
+features = [<span class="str">'lag_7'</span>, <span class="str">'lag_14'</span>, <span class="str">'lag_30'</span>,
+            <span class="str">'roll_7_mean'</span>, <span class="str">'roll_30_mean'</span>, <span class="str">'roll_7_std'</span>,
+            <span class="str">'day_of_week'</span>, <span class="str">'month'</span>, <span class="str">'quarter'</span>]
+
+X_train, y_train = train[features], train[<span class="str">'sales'</span>]
+X_test,  y_test  = test[features],  test[<span class="str">'sales'</span>]
+
+<span class="fn">print</span>(<span class="str">f"Train: {len(train)} rows | Test: {len(test)} rows"</span>)
+    </div>
+  </div>
+
+  <!-- STEP 5: TRAIN -->
+  <div class="panel" id="panel-4">
+    <div class="panel-header">
+      <div class="step-num">05</div>
+      <div>
+        <div class="panel-title">Train Forecasting Models</div>
+        <div class="panel-desc">ARIMA · Prophet · XGBoost</div>
+      </div>
+    </div>
+    <div class="model-grid" id="model-grid"></div>
+    <div class="chart-box">
+      <div class="chart-title">TRAINING LOSS CONVERGENCE — ALL MODELS</div>
+      <canvas id="trainChart" height="90"></canvas>
+    </div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 5: Train Models</span>
+
+<span class="cm"># — ARIMA —</span>
+<span class="kw">from</span> statsmodels.tsa.arima.model <span class="kw">import</span> ARIMA
+arima = ARIMA(y_train, order=(<span class="str">5,1,0</span>)).<span class="fn">fit</span>()
+
+<span class="cm"># — Prophet —</span>
+<span class="kw">from</span> prophet <span class="kw">import</span> Prophet
+prophet_df = train.<span class="fn">reset_index</span>().<span class="fn">rename</span>(columns={<span class="str">'date'</span>:<span class="str">'ds'</span>,<span class="str">'sales'</span>:<span class="str">'y'</span>})
+m = Prophet(seasonality_mode=<span class="str">'multiplicative'</span>, yearly_seasonality=<span class="kw">True</span>)
+m.<span class="fn">fit</span>(prophet_df)
+
+<span class="cm"># — XGBoost —</span>
+<span class="kw">from</span> xgboost <span class="kw">import</span> XGBRegressor
+xgb = XGBRegressor(n_estimators=<span class="str">300</span>, max_depth=<span class="str">6</span>, learning_rate=<span class="str">0.05</span>)
+xgb.<span class="fn">fit</span>(X_train, y_train)
+    </div>
+  </div>
+
+  <!-- STEP 6: EVALUATE -->
+  <div class="panel" id="panel-5">
+    <div class="panel-header">
+      <div class="step-num">06</div>
+      <div>
+        <div class="panel-title">Evaluate Model Performance</div>
+        <div class="panel-desc">MAE · RMSE · MAPE · Model Comparison</div>
+      </div>
+    </div>
+    <div class="metrics" id="step6-metrics"></div>
+    <div class="grid2">
+      <div class="chart-box">
+        <div class="chart-title">MODEL COMPARISON — RMSE</div>
+        <canvas id="evalBar" height="160"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">ERROR DISTRIBUTION — RESIDUALS</div>
+        <canvas id="residualChart" height="160"></canvas>
+      </div>
+    </div>
+    <div class="table-wrap" style="margin-top:16px;" id="eval-table"></div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 6: Evaluate</span>
+<span class="kw">from</span> sklearn.metrics <span class="kw">import</span> mean_absolute_error, mean_squared_error
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="kw">def</span> <span class="fn">mape</span>(y_true, y_pred):
+    <span class="kw">return</span> np.<span class="fn">mean</span>(np.<span class="fn">abs</span>((y_true - y_pred) / y_true)) * <span class="str">100</span>
+
+<span class="kw">for</span> name, pred <span class="kw">in</span> predictions.<span class="fn">items</span>():
+    mae  = mean_absolute_error(y_test, pred)
+    rmse = np.<span class="fn">sqrt</span>(mean_squared_error(y_test, pred))
+    mape_val = <span class="fn">mape</span>(y_test, pred)
+    <span class="fn">print</span>(<span class="str">f"{name} → MAE: {mae:.2f} | RMSE: {rmse:.2f} | MAPE: {mape_val:.2f}%"</span>)
+    </div>
+  </div>
+
+  <!-- STEP 7: VISUALIZE -->
+  <div class="panel" id="panel-6">
+    <div class="panel-header">
+      <div class="step-num">07</div>
+      <div>
+        <div class="panel-title">Visualize Actual vs Predicted Sales</div>
+        <div class="panel-desc">Forecast Lines · Confidence Intervals · Residuals</div>
+      </div>
+    </div>
+    <div class="chart-box" style="margin-bottom:14px;">
+      <div class="chart-title">FULL FORECAST — ACTUAL vs ALL MODELS (2024)</div>
+      <canvas id="forecastChart" height="100"></canvas>
+    </div>
+    <div class="grid2">
+      <div class="chart-box">
+        <div class="chart-title">FUTURE FORECAST — NEXT 90 DAYS (XGBOOST)</div>
+        <canvas id="futureChart" height="160"></canvas>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">RESIDUAL PLOT — XGBOOST ERRORS</div>
+        <canvas id="residual2Chart" height="160"></canvas>
+      </div>
+    </div>
+    <div class="code-block" style="margin-top:16px;">
+<span class="cm"># Step 7: Visualize</span>
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+fig, axes = plt.<span class="fn">subplots</span>(<span class="str">2</span>, <span class="str">1</span>, figsize=(<span class="str">14, 8</span>))
+
+<span class="cm"># Actual vs Predicted</span>
+axes[<span class="str">0</span>].<span class="fn">plot</span>(y_test, label=<span class="str">'Actual'</span>, color=<span class="str">'white'</span>, lw=<span class="str">2</span>)
+axes[<span class="str">0</span>].<span class="fn">plot</span>(xgb_pred, label=<span class="str">'XGBoost'</span>, color=<span class="str">'#00e5ff'</span>)
+axes[<span class="str">0</span>].<span class="fn">plot</span>(arima_pred, label=<span class="str">'ARIMA'</span>, color=<span class="str">'#ff6b35'</span>)
+axes[<span class="str">0</span>].<span class="fn">fill_between</span>(x, lower_ci, upper_ci, alpha=<span class="str">0.2</span>, color=<span class="str">'cyan'</span>)
+axes[<span class="str">0</span>].<span class="fn">set_title</span>(<span class="str">'Actual vs Predicted'</span>)
+axes[<span class="str">0</span>].<span class="fn">legend</span>()
+
+<span class="cm"># Residuals</span>
+residuals = y_test - xgb_pred
+axes[<span class="str">1</span>].<span class="fn">scatter</span>(range(len(residuals)), residuals, s=<span class="str">10</span>, color=<span class="str">'#a259ff'</span>)
+axes[<span class="str">1</span>].<span class="fn">axhline</span>(<span class="str">0</span>, color=<span class="str">'#00ff88'</span>, lw=<span class="str">1</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">show</span>()
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="exportCSV()">⬇ EXPORT FORECAST CSV</button>
+      <button class="btn btn-ghost" onclick="showStep(0)">↺ RESTART</button>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ── DATA GENERATION ────────────────────────────────────────────────────────
+function seed(s){let x=Math.sin(s)*10000;return x-Math.floor(x);}
+function seededRand(s){return seed(s);}
+
+// Generate 5 years daily sales (2020-2024)
+const startDate = new Date('2020-01-01');
+const allDates = [], rawSales = [], cleanSales = [];
+let base = 1200;
+for(let i=0;i<1826;i++){
+  const d = new Date(startDate); d.setDate(d.getDate()+i);
+  const yr = d.getFullYear(), mo = d.getMonth(), dow = d.getDay();
+  const trend = i*0.12;
+  const yearly = Math.sin((mo/12)*2*Math.PI-1.2)*180;
+  const weekly = (dow===0||dow===6)?-120:50;
+  const noise = (seededRand(i+7)*2-1)*90;
+  let s = base + trend + yearly + weekly + noise;
+  // Inject missing & outliers in raw
+  let raw = s;
+  if([45,120,300,700,1100,1500].includes(i)) raw = null;
+  if([200,450,900,1300].includes(i)) raw = s*2.8;
+  rawSales.push(raw);
+  cleanSales.push(Math.round(s));
+  allDates.push(d.toISOString().slice(0,10));
+}
+
+// Split indices
+const trainEnd = allDates.findIndex(d=>d>='2024-01-01');
+const trainDates = allDates.slice(0,trainEnd);
+const testDates  = allDates.slice(trainEnd);
+const trainSales = cleanSales.slice(0,trainEnd);
+const testSales  = cleanSales.slice(trainEnd);
+
+// Simulated predictions
+function simPredict(actual, noise, bias=0){
+  return actual.map((v,i)=>Math.max(0,Math.round(v*(1+(seededRand(i*13+bias)*2-1)*noise)));
+}
+const xgbPred    = simPredict(testSales, 0.055, 1);
+const arimaPred  = simPredict(testSales, 0.11,  5);
+const prophetPred= simPredict(testSales, 0.085, 9);
+
+function mae(a,p){return a.reduce((s,v,i)=>s+Math.abs(v-p[i]),0)/a.length;}
+function rmse(a,p){return Math.sqrt(a.reduce((s,v,i)=>s+(v-p[i])**2,0)/a.length);}
+function mape(a,p){return a.reduce((s,v,i)=>s+Math.abs((v-p[i])/v),0)/a.length*100;}
+
+const models = [
+  {name:'XGBoost',   desc:'Tree-based ensemble with lag features',  mae:mae(testSales,xgbPred),    rmse:rmse(testSales,xgbPred),    mape:mape(testSales,xgbPred),    pred:xgbPred,    color:'#00e5ff', best:true},
+  {name:'ARIMA',     desc:'AutoRegressive Integrated Moving Average',mae:mae(testSales,arimaPred),  rmse:rmse(testSales,arimaPred),  mape:mape(testSales,arimaPred),  pred:arimaPred,  color:'#ff6b35'},
+  {name:'Prophet',   desc:'Seasonal decomposition by Meta',          mae:mae(testSales,prophetPred),rmse:rmse(testSales,prophetPred),mape:mape(testSales,prophetPred),pred:prophetPred,color:'#a259ff'},
+];
+
+// Future 90-day forecast
+const futureDates=[], futurePred=[], futureLow=[], futureHigh=[];
+const lastSale = testSales[testSales.length-1];
+for(let i=0;i<90;i++){
+  const d=new Date('2025-01-01'); d.setDate(d.getDate()+i);
+  futureDates.push(d.toISOString().slice(0,10));
+  const v=Math.round(lastSale+(i*0.15)+(Math.sin(i/7*2*Math.PI)*60)+(seededRand(i*17)*2-1)*40);
+  futurePred.push(v);
+  futureLow.push(Math.round(v*0.92));
+  futureHigh.push(Math.round(v*1.08));
+}
+
+// ── CHART HELPERS ───────────────────────────────────────────────────────────
+Chart.defaults.color='#5a7a9a';
+Chart.defaults.borderColor='rgba(30,45,66,0.8)';
+function every(arr,n){return arr.filter((_,i)=>i%n===0);}
+
+function mkChart(id,cfg){
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  return new Chart(ctx,cfg);
+}
+
+// ── STEP 1 CHARTS ──────────────────────────────────────────────────────────
+function buildStep1(){
+  // Metrics
+  const m=document.getElementById('step1-metrics');
+  const totalSales=cleanSales.reduce((a,b)=>a+b,0);
+  const avgSales=Math.round(totalSales/cleanSales.length);
+  m.innerHTML=`
+    <div class="metric-card"><div class="metric-label">TOTAL RECORDS</div><div class="metric-value cyan">1,826</div></div>
+    <div class="metric-card"><div class="metric-label">DATE RANGE</div><div class="metric-value" style="font-size:1rem">2020–2024</div></div>
+    <div class="metric-card"><div class="metric-label">AVG DAILY SALES</div><div class="metric-value orange">$${avgSales.toLocaleString()}</div></div>
+    <div class="metric-card"><div class="metric-label">PEAK SALES</div><div class="metric-value purple">$${Math.max(...cleanSales).toLocaleString()}</div></div>
+    <div class="metric-card"><div class="metric-label">COLUMNS</div><div class="metric-value green">9</div></div>
+  `;
+  // Chart - sample every 7 days
+  const labels=every(allDates,7);
+  const data=every(cleanSales,7);
+  mkChart('rawChart',{type:'line',data:{labels,datasets:[{label:'Daily Sales',data,borderColor:'#00e5ff',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(0,229,255,0.05)',tension:0.4}]},options:{animation:{duration:800},plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:12,font:{family:"'Space Mono',monospace",size:9}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:9},callback:v=>'$'+v.toLocaleString()}}}}});
+  // Preview table
+  const rows=allDates.slice(0,8).map((d,i)=>`<tr><td>${d}</td><td>$${cleanSales[i].toLocaleString()}</td><td>${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][new Date(d).getDay()]}</td><td>${new Date(d).getMonth()+1}</td><td><span class="tag ok">VALID</span></td></tr>`).join('');
+  document.getElementById('step1-table').innerHTML=`<table><thead><tr><th>DATE</th><th>SALES</th><th>DAY</th><th>MONTH</th><th>STATUS</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── STEP 2 CHARTS ──────────────────────────────────────────────────────────
+function buildStep2(){
+  const m=document.getElementById('step2-metrics');
+  m.innerHTML=`
+    <div class="metric-card"><div class="metric-label">MISSING VALUES</div><div class="metric-value orange">6</div></div>
+    <div class="metric-card"><div class="metric-label">OUTLIERS DETECTED</div><div class="metric-value purple">4</div></div>
+    <div class="metric-card"><div class="metric-label">AFTER CLEANING</div><div class="metric-value green">0 ISSUES</div></div>
+    <div class="metric-card"><div class="metric-label">METHOD</div><div class="metric-value cyan" style="font-size:0.85rem">IQR+INTERP</div></div>
+  `;
+  const sl=every(allDates.slice(0,180),3);
+  const dl=every(rawSales.slice(0,180),3);
+  const cl=every(cleanSales.slice(0,180),3);
+  mkChart('dirtyChart',{type:'line',data:{labels:sl,datasets:[{label:'Raw',data:dl,borderColor:'#ff6b35',borderWidth:1.5,pointRadius:0,tension:0.3,spanGaps:false}]},options:{animation:{duration:600},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>v?'$'+v:'null'}}}}});
+  mkChart('cleanChart',{type:'line',data:{labels:sl,datasets:[{label:'Clean',data:cl,borderColor:'#00ff88',borderWidth:1.5,pointRadius:0,tension:0.3}]},options:{animation:{duration:600},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+  const outlierRows=[[200,'$'+rawSales[200]?.toFixed(0),'Z=3.8','CAPPED'],[450,'$'+rawSales[450]?.toFixed(0),'Z=4.1','CAPPED'],[900,'$'+rawSales[900]?.toFixed(0),'Z=3.6','CAPPED'],[1300,'$'+rawSales[1300]?.toFixed(0),'Z=4.4','CAPPED']].map(([i,v,z,a])=>`<tr><td>${allDates[i]}</td><td class="anomaly">${v}</td><td class="outlier">${z}</td><td><span class="tag warn">${a}</span></td></tr>`).join('');
+  document.getElementById('outlier-table').innerHTML=`<div class="table-wrap"><table><thead><tr><th>DATE</th><th>RAW VALUE</th><th>Z-SCORE</th><th>ACTION</th></tr></thead><tbody>${outlierRows}</tbody></table></div>`;
+}
+
+// ── STEP 3 ─────────────────────────────────────────────────────────────────
+function buildStep3(){
+  const fg=document.getElementById('feature-grid');
+  const feats=[['DAY_OF_WEEK','0–6 (Mon–Sun)','Calendar'],['MONTH','1–12','Calendar'],['QUARTER','1–4','Calendar'],['YEAR','2020–2024','Calendar'],['LAG_7','Sales 7d ago','Lag'],['LAG_14','Sales 14d ago','Lag'],['LAG_30','Sales 30d ago','Lag'],['ROLL_7_MEAN','7-day avg','Rolling'],['ROLL_30_MEAN','30-day avg','Rolling'],['ROLL_7_STD','7-day σ','Rolling']];
+  fg.innerHTML=feats.map(([k,v,t])=>`<div class="feature-item"><div class="fi-label">${t.toUpperCase()}</div><div style="font-size:0.75rem;font-weight:700;margin-bottom:2px">${k}</div><div class="fi-val">${v}</div></div>`).join('');
+  const lagLabels=every(allDates.slice(30,200),5);
+  const lagData=every(cleanSales.slice(30,200),5);
+  const lag7=every(cleanSales.slice(23,193),5);
+  mkChart('lagChart',{type:'line',data:{labels:lagLabels,datasets:[{label:'Actual',data:lagData,borderColor:'#00e5ff',borderWidth:1.5,pointRadius:0},{label:'Lag-7',data:lag7,borderColor:'#ff6b35',borderWidth:1.5,pointRadius:0,borderDash:[4,2]}]},options:{animation:{duration:600},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{display:false},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+  const roll7=[], roll30=[], rollLabels=every(allDates.slice(30,300),5);
+  for(let i=30;i<300;i+=5){
+    const w7=cleanSales.slice(Math.max(0,i-7),i);
+    const w30=cleanSales.slice(Math.max(0,i-30),i);
+    roll7.push(Math.round(w7.reduce((a,b)=>a+b,0)/w7.length));
+    roll30.push(Math.round(w30.reduce((a,b)=>a+b,0)/w30.length));
+  }
+  mkChart('rollingChart',{type:'line',data:{labels:rollLabels,datasets:[{label:'7-day MA',data:roll7,borderColor:'#00ff88',borderWidth:1.5,pointRadius:0},{label:'30-day MA',data:roll30,borderColor:'#a259ff',borderWidth:1.5,pointRadius:0}]},options:{animation:{duration:600},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{display:false},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+}
+
+// ── STEP 4 ─────────────────────────────────────────────────────────────────
+function buildStep4(){
+  const m=document.getElementById('step4-metrics');
+  m.innerHTML=`
+    <div class="metric-card"><div class="metric-label">TRAIN SET</div><div class="metric-value cyan">${trainDates.length.toLocaleString()} rows</div></div>
+    <div class="metric-card"><div class="metric-label">TEST SET</div><div class="metric-value orange">${testDates.length.toLocaleString()} rows</div></div>
+    <div class="metric-card"><div class="metric-label">SPLIT RATIO</div><div class="metric-value green">80/20</div></div>
+    <div class="metric-card"><div class="metric-label">SPLIT DATE</div><div class="metric-value purple" style="font-size:0.9rem">2024-01-01</div></div>
+  `;
+  const labels=every(allDates,14);
+  const trainD=every(cleanSales.slice(0,trainEnd),14);
+  const testD=new Array(trainD.length).fill(null).concat(every(cleanSales.slice(trainEnd),14));
+  const trainFull=every(cleanSales,14).map((v,i)=>i<trainD.length?v:null);
+  mkChart('splitChart',{type:'line',data:{labels,datasets:[{label:'Train (2020–2023)',data:trainFull,borderColor:'#00e5ff',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(0,229,255,0.06)',tension:0.3},{label:'Test (2024)',data:testD,borderColor:'#ff6b35',borderWidth:2,pointRadius:0,fill:true,backgroundColor:'rgba(255,107,53,0.08)',tension:0.3}]},options:{animation:{duration:700},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{ticks:{maxTicksLimit:10,font:{family:"'Space Mono',monospace",size:8}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+}
+
+// ── STEP 5 ─────────────────────────────────────────────────────────────────
+function buildStep5(){
+  const grid=document.getElementById('model-grid');
+  grid.innerHTML=models.map(mo=>`
+    <div class="model-card ${mo.best?'best':''}">
+      ${mo.best?'<div class="best-tag">★ BEST MODEL</div>':''}
+      <div class="model-name" style="color:${mo.color}">${mo.name}</div>
+      <div class="model-desc">${mo.desc}</div>
+      <div class="model-metric"><span>MAE</span><span>$${mo.mae.toFixed(1)}</span></div>
+      <div class="model-metric"><span>RMSE</span><span>$${mo.rmse.toFixed(1)}</span></div>
+      <div class="model-metric"><span>MAPE</span><span>${mo.mape.toFixed(2)}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.max(20,100-mo.mape*5)}%"></div></div>
+    </div>
+  `).join('');
+  // Simulated convergence
+  const epochs=Array.from({length:50},(_,i)=>i+1);
+  const xgbLoss=epochs.map(e=>300*Math.exp(-e*0.1)+20+(seededRand(e*3)*2-1)*8);
+  const arimaLoss=epochs.map(e=>280*Math.exp(-e*0.07)+35+(seededRand(e*7)*2-1)*10);
+  const prophetLoss=epochs.map(e=>290*Math.exp(-e*0.085)+28+(seededRand(e*11)*2-1)*9);
+  mkChart('trainChart',{type:'line',data:{labels:epochs,datasets:[{label:'XGBoost',data:xgbLoss,borderColor:'#00e5ff',borderWidth:2,pointRadius:0,tension:0.4},{label:'ARIMA',data:arimaLoss,borderColor:'#ff6b35',borderWidth:2,pointRadius:0,tension:0.4},{label:'Prophet',data:prophetLoss,borderColor:'#a259ff',borderWidth:2,pointRadius:0,tension:0.4}]},options:{animation:{duration:800},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{title:{display:true,text:'EPOCHS',font:{family:"'Space Mono',monospace",size:9}},ticks:{font:{family:"'Space Mono',monospace",size:8}}},y:{title:{display:true,text:'LOSS',font:{family:"'Space Mono',monospace",size:9}},ticks:{font:{family:"'Space Mono',monospace",size:8}}}}}});
+}
+
+// ── STEP 6 ─────────────────────────────────────────────────────────────────
+function buildStep6(){
+  const m=document.getElementById('step6-metrics');
+  const best=models[0];
+  m.innerHTML=`
+    <div class="metric-card"><div class="metric-label">BEST MODEL</div><div class="metric-value cyan">XGBoost</div></div>
+    <div class="metric-card"><div class="metric-label">MAE</div><div class="metric-value green">$${best.mae.toFixed(1)}</div></div>
+    <div class="metric-card"><div class="metric-label">RMSE</div><div class="metric-value orange">$${best.rmse.toFixed(1)}</div></div>
+    <div class="metric-card"><div class="metric-label">MAPE</div><div class="metric-value purple">${best.mape.toFixed(2)}%</div></div>
+  `;
+  mkChart('evalBar',{type:'bar',data:{labels:models.map(m=>m.name),datasets:[{label:'RMSE',data:models.map(m=>m.rmse.toFixed(1)),backgroundColor:models.map(m=>m.color+'33'),borderColor:models.map(m=>m.color),borderWidth:2,borderRadius:6}]},options:{animation:{duration:700},plugins:{legend:{display:false}},scales:{x:{ticks:{font:{family:"'Space Mono',monospace",size:9}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:9},callback:v=>'$'+v}}}}});
+  // Residuals distribution
+  const residuals=testSales.map((v,i)=>v-xgbPred[i]);
+  const bins=Array.from({length:20},(_,i)=>i-10);
+  const hist=bins.map(b=>residuals.filter(r=>Math.abs(r-b*20)<20).length);
+  mkChart('residualChart',{type:'bar',data:{labels:bins.map(b=>b*20),datasets:[{label:'Residuals',data:hist,backgroundColor:'rgba(162,89,255,0.4)',borderColor:'#a259ff',borderWidth:1,borderRadius:4}]},options:{animation:{duration:700},plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:8,font:{family:"'Space Mono',monospace",size:8}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:8}}}}}});
+  // Eval table
+  const rows=models.map(mo=>`<tr><td style="color:${mo.color};font-weight:700">${mo.name}</td><td>$${mo.mae.toFixed(1)}</td><td>$${mo.rmse.toFixed(1)}</td><td>${mo.mape.toFixed(2)}%</td><td><span class="tag ${mo.best?'ok':'info'}">${mo.best?'BEST':'GOOD'}</span></td></tr>`).join('');
+  document.getElementById('eval-table').innerHTML=`<table><thead><tr><th>MODEL</th><th>MAE</th><th>RMSE</th><th>MAPE</th><th>RANK</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── STEP 7 ─────────────────────────────────────────────────────────────────
+function buildStep7(){
+  const labels=every(testDates,2);
+  const actual=every(testSales,2);
+  const xgb=every(xgbPred,2);
+  const arima=every(arimaPred,2);
+  const prophet=every(prophetPred,2);
+  mkChart('forecastChart',{type:'line',data:{labels,datasets:[{label:'Actual',data:actual,borderColor:'#ffffff',borderWidth:2,pointRadius:0,tension:0.3},{label:'XGBoost',data:xgb,borderColor:'#00e5ff',borderWidth:1.5,pointRadius:0,tension:0.3,borderDash:[0]},{label:'ARIMA',data:arima,borderColor:'#ff6b35',borderWidth:1.5,pointRadius:0,tension:0.3,borderDash:[4,2]},{label:'Prophet',data:prophet,borderColor:'#a259ff',borderWidth:1.5,pointRadius:0,tension:0.3,borderDash:[2,2]}]},options:{animation:{duration:900},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{ticks:{maxTicksLimit:10,font:{family:"'Space Mono',monospace",size:8}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+  mkChart('futureChart',{type:'line',data:{labels:every(futureDates,3),datasets:[{label:'Forecast',data:every(futurePred,3),borderColor:'#00e5ff',borderWidth:2,pointRadius:0,tension:0.4,fill:'+1'},{label:'Upper CI',data:every(futureHigh,3),borderColor:'rgba(0,229,255,0.2)',borderWidth:1,pointRadius:0,fill:false,borderDash:[2,2]},{label:'Lower CI',data:every(futureLow,3),borderColor:'rgba(0,229,255,0.2)',borderWidth:1,pointRadius:0,fill:false,borderDash:[2,2]}]},options:{animation:{duration:700},plugins:{legend:{labels:{font:{family:"'Space Mono',monospace",size:9}}}},scales:{x:{ticks:{maxTicksLimit:8,font:{family:"'Space Mono',monospace",size:8}}},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+  const resLabels=every(testDates,2);
+  const res=every(testSales.map((v,i)=>v-xgbPred[i]),2);
+  mkChart('residual2Chart',{type:'scatter',data:{datasets:[{label:'Residuals',data:res.map((v,i)=>({x:i,y:v})),backgroundColor:'rgba(162,89,255,0.5)',pointRadius:3,borderColor:'#a259ff',borderWidth:1}]},options:{animation:{duration:700},plugins:{legend:{display:false}},scales:{x:{display:false},y:{ticks:{font:{family:"'Space Mono',monospace",size:8},callback:v=>'$'+v}}}}});
+}
+
+// ── NAVIGATION ──────────────────────────────────────────────────────────────
+const builders=[buildStep1,buildStep2,buildStep3,buildStep4,buildStep5,buildStep6,buildStep7];
+const built=new Array(7).fill(false);
+function showStep(n){
+  document.querySelectorAll('.panel').forEach((p,i)=>{p.classList.toggle('active',i===n);});
+  document.querySelectorAll('.step-btn').forEach((b,i)=>{b.classList.toggle('active',i===n);});
+  if(!built[n]){builders[n]();built[n]=true;}
+}
+
+// ── EXPORT CSV ──────────────────────────────────────────────────────────────
+function exportCSV(){
+  let csv='date,actual,xgboost_pred,arima_pred,prophet_pred,xgb_residual\n';
+  testDates.forEach((d,i)=>{
+    csv+=`${d},${testSales[i]},${xgbPred[i]},${arimaPred[i]},${prophetPred[i]},${testSales[i]-xgbPred[i]}\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='sales_forecast_2024.csv';
+  a.click();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+buildStep1();built[0]=true;
+</script>
+</body>
+</html>
