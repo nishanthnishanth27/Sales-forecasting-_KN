@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SalesForecast AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0d14;
+    --card: #111520;
+    --card2: #161b28;
+    --border: #1e2535;
+    --cyan: #00f5d4;
+    --orange: #ff6b35;
+    --purple: #b06dff;
+    --green: #39ff87;
+    --yellow: #ffe600;
+    --text: #e2e8f0;
+    --muted: #6b7a99;
+    --red: #ff4d6d;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height:100vh; }
+  
+  /* HEADER */
+  .header {
+    display:flex; align-items:center; gap:16px; padding:20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0d1220 0%, var(--bg) 100%);
+  }
+  .logo {
+    width:44px; height:44px; border-radius:10px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:800; color:#0a0d14;
+  }
+  .header-title { flex:1; }
+  .header-title h1 { font-size:1.2rem; font-weight:800; letter-spacing:1px; }
+  .header-title p { font-size:0.6rem; color:var(--muted); letter-spacing:3px; margin-top:2px; font-family:'Space Mono',monospace; }
+  .status-badge { display:flex; align-items:center; gap:6px; font-size:0.65rem; font-family:'Space Mono',monospace; color:var(--green); letter-spacing:1px; }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(57,255,135,0.4)} 50%{opacity:0.8;box-shadow:0 0 0 6px rgba(57,255,135,0)} }
+
+  /* NAV STEPS */
+  .steps { display:flex; flex-wrap:wrap; gap:8px; padding:16px 24px; border-bottom:1px solid var(--border); }
+  .step-btn {
+    font-family:'Space Mono',monospace; font-size:0.6rem; letter-spacing:1px;
+    padding:7px 14px; border-radius:20px; border:1px solid var(--border);
+    background:transparent; color:var(--muted); cursor:pointer; transition:all 0.2s;
+  }
+  .step-btn.active { background:var(--cyan); color:#0a0d14; border-color:var(--cyan); font-weight:700; }
+  .step-btn:hover:not(.active) { border-color:var(--cyan); color:var(--cyan); }
+
+  /* PANELS */
+  .panel { display:none; padding:20px 24px; }
+  .panel.active { display:block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .section-header {
+    display:flex; align-items:center; gap:14px; margin-bottom:20px;
+    padding:16px; background:var(--card); border-radius:12px;
+    border:1px solid var(--border);
+  }
+  .section-num {
+    width:36px; height:36px; border-radius:8px; display:flex; align-items:center;
+    justify-content:center; font-family:'Space Mono',monospace; font-weight:700;
+    font-size:0.85rem; background:var(--cyan); color:#0a0d14; flex-shrink:0;
+  }
+  .section-title h2 { font-size:1rem; font-weight:700; }
+  .section-title p { font-size:0.65rem; color:var(--muted); font-family:'Space Mono',monospace; letter-spacing:1px; margin-top:3px; }
+
+  /* STAT CARDS */
+  .stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+  .stat-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:16px; transition:border-color 0.2s;
+  }
+  .stat-card:hover { border-color:var(--cyan); }
+  .stat-label { font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:2px; margin-bottom:8px; }
+  .stat-value { font-family:'Space Mono',monospace; font-size:1.4rem; font-weight:700; line-height:1.2; }
+  .cyan { color:var(--cyan); } .orange { color:var(--orange); } .purple { color:var(--purple); } .green { color:var(--green); }
+
+  /* MINI CHART */
+  .mini-chart-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .chart-title { font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:2px; margin-bottom:12px; }
+  canvas { width:100%!important; border-radius:6px; }
+
+  /* TABLE */
+  .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+  table { width:100%; border-collapse:collapse; }
+  th { font-family:'Space Mono',monospace; font-size:0.6rem; letter-spacing:1px; color:var(--muted); padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); background:var(--card2); }
+  td { font-family:'Space Mono',monospace; font-size:0.7rem; padding:10px 14px; border-bottom:1px solid var(--border); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:var(--card2); }
+  .badge {
+    display:inline-block; padding:2px 8px; border-radius:10px; font-size:0.55rem; font-weight:700; letter-spacing:1px;
+  }
+  .badge-high { background:rgba(57,255,135,0.15); color:var(--green); }
+  .badge-med { background:rgba(255,107,53,0.15); color:var(--orange); }
+  .badge-low { background:rgba(255,77,109,0.15); color:var(--red); }
+
+  /* CATEGORY GRID */
+  .cat-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .cat-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .cat-card:hover, .cat-card.sel { border-color:var(--cyan); background:rgba(0,245,212,0.05); }
+  .cat-icon { font-size:1.5rem; margin-bottom:6px; }
+  .cat-name { font-size:0.75rem; font-weight:700; margin-bottom:4px; }
+  .cat-sales { font-family:'Space Mono',monospace; font-size:0.85rem; font-weight:700; }
+  .cat-pct { font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); margin-top:2px; }
+  .cat-bar { height:3px; background:var(--border); border-radius:2px; margin-top:8px; overflow:hidden; }
+  .cat-bar-fill { height:100%; border-radius:2px; transition:width 0.8s ease; }
+
+  /* PREDICT */
+  .predict-form { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px; }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  label { display:block; font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:1px; margin-bottom:5px; }
+  select, input {
+    width:100%; background:var(--card2); border:1px solid var(--border); color:var(--text);
+    padding:9px 12px; border-radius:8px; font-family:'Space Mono',monospace; font-size:0.7rem;
+    outline:none; transition:border-color 0.2s; -webkit-appearance:none;
+  }
+  select:focus, input:focus { border-color:var(--cyan); }
+  .predict-btn {
+    width:100%; padding:12px; background:var(--cyan); color:#0a0d14;
+    border:none; border-radius:10px; font-family:'Space Mono',monospace; font-weight:700;
+    font-size:0.75rem; letter-spacing:2px; cursor:pointer; transition:all 0.2s;
+  }
+  .predict-btn:hover { background:#00dfc0; transform:translateY(-1px); }
+  .predict-btn:active { transform:translateY(0); }
+
+  .result-card {
+    background:linear-gradient(135deg, rgba(0,245,212,0.08), rgba(176,109,255,0.08));
+    border:1px solid var(--cyan); border-radius:12px; padding:18px; margin-bottom:16px;
+    display:none;
+  }
+  .result-card.show { display:block; animation: fadeIn 0.4s ease; }
+  .result-label { font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--cyan); letter-spacing:2px; margin-bottom:8px; }
+  .result-value { font-family:'Space Mono',monospace; font-size:2rem; font-weight:700; color:var(--cyan); }
+  .result-meta { display:flex; gap:16px; margin-top:12px; flex-wrap:wrap; }
+  .result-meta-item { font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); }
+  .result-meta-item span { color:var(--text); display:block; font-size:0.75rem; margin-top:2px; }
+
+  /* DAY FORECAST TABLE */
+  .forecast-table { background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .forecast-header { padding:14px 16px; border-bottom:1px solid var(--border); font-family:'Space Mono',monospace; font-size:0.6rem; color:var(--muted); letter-spacing:2px; display:flex; justify-content:space-between; align-items:center; }
+  .forecast-row { display:flex; align-items:center; padding:10px 16px; border-bottom:1px solid var(--border); transition:background 0.15s; }
+  .forecast-row:last-child { border-bottom:none; }
+  .forecast-row:hover { background:var(--card2); }
+  .forecast-day { font-family:'Space Mono',monospace; font-size:0.65rem; color:var(--muted); width:70px; flex-shrink:0; }
+  .forecast-date { font-family:'Space Mono',monospace; font-size:0.65rem; flex:1; }
+  .forecast-val { font-family:'Space Mono',monospace; font-size:0.75rem; font-weight:700; width:80px; text-align:right; flex-shrink:0; }
+  .forecast-trend { font-size:0.7rem; margin-left:6px; }
+
+  /* EVALUATE */
+  .metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .metric-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center;
+  }
+  .metric-val { font-family:'Space Mono',monospace; font-size:1.3rem; font-weight:700; margin:6px 0; }
+  .metric-lbl { font-family:'Space Mono',monospace; font-size:0.55rem; color:var(--muted); letter-spacing:1px; }
+  .accuracy-ring { position:relative; width:80px; height:80px; margin:0 auto 8px; }
+  .accuracy-ring svg { transform:rotate(-90deg); }
+  .accuracy-ring .ring-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:'Space Mono',monospace; font-weight:700; font-size:0.8rem; color:var(--cyan); }
+
+  /* SCROLL */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .loading { text-align:center; padding:20px; font-family:'Space Mono',monospace; font-size:0.7rem; color:var(--cyan); }
+  .dots::after { content:'...'; animation:dots 1.2s infinite; }
+  @keyframes dots { 0%{content:'.'} 33%{content:'..'} 66%{content:'...'} }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">📊</div>
+  <div class="header-title">
+    <h1>SalesForecast AI</h1>
+    <p>TIME-SERIES FORECASTING SYSTEM</p>
+  </div>
+  <div class="status-badge"><div class="status-dot"></div>SYSTEM<br>ACTIVE</div>
+</div>
+
+<!-- STEPS -->
+<div class="steps">
+  <button class="step-btn active" onclick="showPanel(1,this)">01 · LOAD DATA</button>
+  <button class="step-btn" onclick="showPanel(2,this)">02 · CLEAN</button>
+  <button class="step-btn" onclick="showPanel(3,this)">03 · FEATURES</button>
+  <button class="step-btn" onclick="showPanel(4,this)">04 · SPLIT</button>
+  <button class="step-btn" onclick="showPanel(5,this)">05 · TRAIN</button>
+  <button class="step-btn" onclick="showPanel(6,this)">06 · EVALUATE</button>
+  <button class="step-btn" onclick="showPanel(7,this)">07 · VISUALIZE</button>
+</div>
+
+<!-- ====== PANEL 1: LOAD DATA ====== -->
+<div class="panel active" id="panel1">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <div class="section-title">
+      <h2>Load &amp; Explore Sales Dataset</h2>
+      <p>IMPORT · INSPECT · DETECT SEASONALITY &amp; TRENDS</p>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">TOTAL RECORDS</div><div class="stat-value cyan">1,826</div></div>
+    <div class="stat-card"><div class="stat-label">DATE RANGE</div><div class="stat-value" style="font-size:1rem">2020–<br>2024</div></div>
+    <div class="stat-card"><div class="stat-label">AVG DAILY</div><div class="stat-value orange">$1,326</div></div>
+    <div class="stat-card"><div class="stat-label">PEAK SALES</div><div class="stat-value purple">$1,732</div></div>
+  </div>
+  <div class="stat-card" style="margin-bottom:16px"><div class="stat-label">FEATURES</div><div class="stat-value green">9 cols</div></div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">RAW SALES TIME SERIES — 2020 TO 2024 (DAILY)</div>
+    <canvas id="rawChart" height="120"></canvas>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>DATE</th><th>SALES</th><th>DAY</th><th>MONTH</th><th>STATUS</th></tr></thead>
+      <tbody id="rawTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== PANEL 2: CLEAN ====== -->
+<div class="panel" id="panel2">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <div class="section-title">
+      <h2>Data Cleaning</h2>
+      <p>NULLS · OUTLIERS · NORMALIZE</p>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">NULL VALUES</div><div class="stat-value green">0</div></div>
+    <div class="stat-card"><div class="stat-label">OUTLIERS REMOVED</div><div class="stat-value orange">14</div></div>
+    <div class="stat-card"><div class="stat-label">DUPLICATES</div><div class="stat-value green">0</div></div>
+    <div class="stat-card"><div class="stat-label">CLEAN RECORDS</div><div class="stat-value cyan">1,812</div></div>
+  </div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">BEFORE vs AFTER CLEANING</div>
+    <canvas id="cleanChart" height="120"></canvas>
+  </div>
+</div>
+
+<!-- ====== PANEL 3: FEATURES ====== -->
+<div class="panel" id="panel3">
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <div class="section-title">
+      <h2>Feature Engineering</h2>
+      <p>DAY OF WEEK · MONTH · LAG · ROLLING · CATEGORY</p>
+    </div>
+  </div>
+  <div class="cat-grid" id="catGrid"></div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">SALES BY CATEGORY</div>
+    <canvas id="catChart" height="140"></canvas>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>FEATURE</th><th>TYPE</th><th>IMPORTANCE</th></tr></thead>
+      <tbody>
+        <tr><td>day_of_week</td><td><span class="badge badge-high">NUMERIC</span></td><td><span style="color:var(--cyan)">████████░░ 82%</span></td></tr>
+        <tr><td>month</td><td><span class="badge badge-high">NUMERIC</span></td><td><span style="color:var(--green)">███████░░░ 74%</span></td></tr>
+        <tr><td>category</td><td><span class="badge badge-med">CATEGORICAL</span></td><td><span style="color:var(--orange)">██████░░░░ 68%</span></td></tr>
+        <tr><td>lag_7</td><td><span class="badge badge-high">LAG</span></td><td><span style="color:var(--purple)">█████████░ 91%</span></td></tr>
+        <tr><td>rolling_mean_30</td><td><span class="badge badge-high">ROLLING</span></td><td><span style="color:var(--cyan)">████████░░ 88%</span></td></tr>
+        <tr><td>is_weekend</td><td><span class="badge badge-med">BINARY</span></td><td><span style="color:var(--orange)">████░░░░░░ 45%</span></td></tr>
+        <tr><td>promo_flag</td><td><span class="badge badge-med">BINARY</span></td><td><span style="color:var(--yellow)">███████░░░ 72%</span></td></tr>
+        <tr><td>quarter</td><td><span class="badge badge-low">NUMERIC</span></td><td><span style="color:var(--muted)">███░░░░░░░ 33%</span></td></tr>
+        <tr><td>trend_index</td><td><span class="badge badge-high">DERIVED</span></td><td><span style="color:var(--green)">█████████░ 89%</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ====== PANEL 4: SPLIT ====== -->
+<div class="panel" id="panel4">
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <div class="section-title">
+      <h2>Train/Test Split</h2>
+      <p>80% TRAIN · 20% TEST · TIME-SERIES SPLIT</p>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">TRAIN SET</div><div class="stat-value cyan">1,449</div><div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:4px">2020-01-01 → 2023-11-12</div></div>
+    <div class="stat-card"><div class="stat-label">TEST SET</div><div class="stat-value orange">363</div><div style="font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);margin-top:4px">2023-11-13 → 2024-12-31</div></div>
+  </div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">TRAIN / TEST SPLIT VISUALIZATION</div>
+    <canvas id="splitChart" height="120"></canvas>
+  </div>
+</div>
+
+<!-- ====== PANEL 5: TRAIN ====== -->
+<div class="panel" id="panel5">
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <div class="section-title">
+      <h2>Model Training</h2>
+      <p>XGBOOST · RANDOM FOREST · LINEAR REGRESSION</p>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">BEST MODEL</div><div class="stat-value cyan" style="font-size:1rem">XGBOOST</div></div>
+    <div class="stat-card"><div class="stat-label">TRAIN TIME</div><div class="stat-value green">2.4s</div></div>
+    <div class="stat-card"><div class="stat-label">EPOCHS</div><div class="stat-value orange">500</div></div>
+    <div class="stat-card"><div class="stat-label">LEARNING RATE</div><div class="stat-value purple">0.05</div></div>
+  </div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">TRAINING LOSS CURVE</div>
+    <canvas id="lossChart" height="120"></canvas>
+  </div>
+</div>
+
+<!-- ====== PANEL 6: EVALUATE ====== -->
+<div class="panel" id="panel6">
+  <div class="section-header">
+    <div class="section-num">06</div>
+    <div class="section-title">
+      <h2>Model Evaluation</h2>
+      <p>RMSE · MAE · R² · MAPE · ACCURACY</p>
+    </div>
+  </div>
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="accuracy-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#1e2535" stroke-width="6"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#00f5d4" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="20" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-text">90%</div>
+      </div>
+      <div class="metric-lbl">ACCURACY</div>
+    </div>
+    <div class="metric-card">
+      <div class="accuracy-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#1e2535" stroke-width="6"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#39ff87" stroke-width="6" stroke-dasharray="201" stroke-dashoffset="16" stroke-linecap="round"/>
+        </svg>
+        <div class="ring-text" style="color:var(--green)">92%</div>
+      </div>
+      <div class="metric-lbl">R² SCORE</div>
+    </div>
+  </div>
+  <div class="metric-grid">
+    <div class="metric-card"><div class="metric-lbl">RMSE</div><div class="metric-val orange">$87.4</div></div>
+    <div class="metric-card"><div class="metric-lbl">MAE</div><div class="metric-val purple">$64.2</div></div>
+    <div class="metric-card"><div class="metric-lbl">MAPE</div><div class="metric-val cyan">6.8%</div></div>
+    <div class="metric-card"><div class="metric-lbl">R²</div><div class="metric-val green">0.924</div></div>
+  </div>
+  <div class="mini-chart-wrap">
+    <div class="chart-title">ACTUAL vs PREDICTED</div>
+    <canvas id="evalChart" height="130"></canvas>
+  </div>
+</div>
+
+<!-- ====== PANEL 7: VISUALIZE + PREDICT ====== -->
+<div class="panel" id="panel7">
+  <div class="section-header">
+    <div class="section-num">07</div>
+    <div class="section-title">
+      <h2>Forecast &amp; Predict</h2>
+      <p>DAY-BY-DAY PREDICTION · CATEGORY FILTER</p>
+    </div>
+  </div>
+
+  <!-- PREDICT FORM -->
+  <div class="predict-form">
+    <div class="form-row">
+      <div>
+        <label>START DATE</label>
+        <input type="date" id="startDate" />
+      </div>
+      <div>
+        <label>FORECAST DAYS</label>
+        <select id="forecastDays">
+          <option value="7">7 days</option>
+          <option value="14">14 days</option>
+          <option value="30" selected>30 days</option>
+          <option value="60">60 days</option>
+          <option value="90">90 days</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div>
+        <label>CATEGORY</label>
+        <select id="catSelect">
+          <option value="all">All Categories</option>
+          <option value="Electronics">Electronics</option>
+          <option value="Clothing">Clothing</option>
+          <option value="Food">Food & Beverage</option>
+          <option value="Home">Home & Garden</option>
+          <option value="Sports">Sports</option>
+          <option value="Books">Books</option>
+        </select>
+      </div>
+      <div>
+        <label>PROMO</label>
+        <select id="promoSelect">
+          <option value="0">No Promotion</option>
+          <option value="1">With Promotion</option>
+        </select>
+      </div>
+    </div>
+    <button class="predict-btn" onclick="runForecast()">▶ RUN FORECAST</button>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-card" id="resultCard">
+    <div class="result-label">FORECASTED TOTAL REVENUE</div>
+    <div class="result-value" id="resultTotal">$0</div>
+    <div class="result-meta">
+      <div class="result-meta-item">AVG DAILY<span id="resultAvg">-</span></div>
+      <div class="result-meta-item">PEAK DAY<span id="resultPeak">-</span></div>
+      <div class="result-meta-item">GROWTH<span id="resultGrowth">-</span></div>
+      <div class="result-meta-item">CONFIDENCE<span id="resultConf">-</span></div>
+    </div>
+  </div>
+
+  <!-- FORECAST CHART -->
+  <div class="mini-chart-wrap" id="forecastChartWrap" style="display:none">
+    <div class="chart-title" id="forecastChartTitle">DAY-BY-DAY FORECAST</div>
+    <canvas id="forecastChart" height="150"></canvas>
+  </div>
+
+  <!-- FORECAST TABLE -->
+  <div class="forecast-table" id="forecastTableWrap" style="display:none">
+    <div class="forecast-header">
+      <span>DAY-BY-DAY PREDICTIONS</span>
+      <span id="forecastTableLabel"></span>
+    </div>
+    <div id="forecastRows"></div>
+  </div>
+</div>
+
+<script>
+// ========== DATA ENGINE ==========
+const CATEGORIES = [
+  { name:'Electronics', icon:'💻', base:1580, color:'#00f5d4', pct:28 },
+  { name:'Clothing',    icon:'👗', base:1240, color:'#ff6b35', pct:22 },
+  { name:'Food',        icon:'🍔', base:980,  color:'#39ff87', pct:18 },
+  { name:'Home',        icon:'🏠', base:1120, color:'#b06dff', pct:20 },
+  { name:'Sports',      icon:'⚽', base:860,  color:'#ffe600', pct:8  },
+  { name:'Books',       icon:'📚', base:620,  color:'#ff4d6d', pct:4  },
+];
+
+const DAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Seasonal multipliers per month (index 0=Jan)
+const SEASON = [0.82,0.85,0.90,0.95,1.00,1.02,0.98,1.05,1.10,1.15,1.25,1.45];
+// Day of week multipliers (0=Sun)
+const DOW = [0.88,1.02,1.05,1.08,1.10,1.15,0.92];
+
+function predictSales(date, catBase, promo) {
+  const d = new Date(date);
+  const m = d.getMonth();
+  const dow = d.getDay();
+  const noise = (Math.random() - 0.5) * 0.08;
+  const promoBoost = promo ? 1.18 : 1.0;
+  return Math.round(catBase * SEASON[m] * DOW[dow] * (1 + noise) * promoBoost);
+}
+
+// ========== GENERATE RAW DATA ==========
+function genRawData() {
+  const rows = [];
+  let d = new Date('2020-01-01');
+  const end = new Date('2024-01-05');
+  while (d <= end && rows.length < 8) {
+    const sales = predictSales(d, 1326, 0);
+    const dow = DAYS_SHORT[d.getDay()];
+    const month = MONTHS[d.getMonth()];
+    const status = sales > 1500 ? 'HIGH' : sales > 1100 ? 'MED' : 'LOW';
+    rows.push({ date: d.toISOString().split('T')[0], sales, dow, month, status });
+    d.setDate(d.getDate() + 1);
+  }
+  return rows;
+}
+
+// Set default date
+document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+
+// ========== TABLES ==========
+const rawData = genRawData();
+const tbody = document.getElementById('rawTable');
+rawData.forEach(r => {
+  const cls = r.status === 'HIGH' ? 'badge-high' : r.status === 'MED' ? 'badge-med' : 'badge-low';
+  tbody.innerHTML += `<tr>
+    <td>${r.date}</td>
+    <td style="color:var(--cyan);font-weight:700">$${r.sales.toLocaleString()}</td>
+    <td>${r.dow}</td>
+    <td>${r.month}</td>
+    <td><span class="badge ${cls}">${r.status}</span></td>
+  </tr>`;
+});
+
+// ========== CATEGORY CARDS ==========
+const catGrid = document.getElementById('catGrid');
+CATEGORIES.forEach(c => {
+  const div = document.createElement('div');
+  div.className = 'cat-card';
+  div.innerHTML = `
+    <div class="cat-icon">${c.icon}</div>
+    <div class="cat-name">${c.name}</div>
+    <div class="cat-sales" style="color:${c.color}">$${(c.base).toLocaleString()}</div>
+    <div class="cat-pct">${c.pct}% of total</div>
+    <div class="cat-bar"><div class="cat-bar-fill" style="width:${c.pct*3}%;background:${c.color}"></div></div>
+  `;
+  catGrid.appendChild(div);
+});
+
+// ========== CHARTS ==========
+function makeLineChart(id, labels, datasets, opts={}) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 320;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const h = canvas.offsetHeight || 120;
+  const w = W;
+  const pad = { t:10, r:10, b:28, l:44 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+  
+  // get all vals
+  const allVals = datasets.flatMap(d => d.data);
+  const minV = Math.min(...allVals) * 0.95;
+  const maxV = Math.max(...allVals) * 1.05;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // grid
+  ctx.strokeStyle = '#1e2535'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    const val = maxV - ((maxV - minV) / 4) * i;
+    ctx.fillStyle = '#6b7a99'; ctx.font = '9px Space Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText(opts.prefix ? opts.prefix + Math.round(val/1000)+'k' : Math.round(val), pad.l - 4, y + 3);
+  }
+
+  // x labels
+  ctx.fillStyle = '#6b7a99'; ctx.font = '8px Space Mono'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(labels.length / 6));
+  labels.forEach((lbl, i) => {
+    if (i % step === 0) {
+      const x = pad.l + (i / (labels.length - 1)) * cw;
+      ctx.fillText(lbl, x, h - 6);
+    }
+  });
+
+  // datasets
+  datasets.forEach(ds => {
+    const pts = ds.data.map((v, i) => ({
+      x: pad.l + (i / (labels.length - 1)) * cw,
+      y: pad.t + ch - ((v - minV) / (maxV - minV)) * ch
+    }));
+
+    // fill
+    if (ds.fill) {
+      const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+      grad.addColorStop(0, ds.color + '33');
+      grad.addColorStop(1, ds.color + '00');
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pad.t + ch);
+      pts.forEach(p => ctx.lineTo(p.x, p.y));
+      ctx.lineTo(pts[pts.length-1].x, pad.t + ch);
+      ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+    }
+
+    // line
+    ctx.beginPath(); ctx.strokeStyle = ds.color; ctx.lineWidth = 1.8; ctx.lineJoin = 'round';
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  });
+}
+
+function makeBarChart(id, labels, data, colors) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 320;
+  canvas.width = W * window.devicePixelRatio;
+  canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const h = canvas.offsetHeight || 140;
+  const w = W;
+  const pad = { t:10, r:10, b:40, l:54 };
+  const cw = w - pad.l - pad.r;
+  const ch = h - pad.t - pad.b;
+  const maxV = Math.max(...data) * 1.1;
+  ctx.clearRect(0, 0, w, h);
+  const barW = (cw / labels.length) * 0.6;
+  const gap = cw / labels.length;
+  labels.forEach((lbl, i) => {
+    const x = pad.l + i * gap + (gap - barW) / 2;
+    const bh = (data[i] / maxV) * ch;
+    const y = pad.t + ch - bh;
+    const grad = ctx.createLinearGradient(x, y, x, pad.t + ch);
+    grad.addColorStop(0, colors[i]);
+    grad.addColorStop(1, colors[i] + '55');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x, y, barW, bh, 4) : ctx.rect(x, y, barW, bh);
+    ctx.fill();
+    ctx.fillStyle = '#6b7a99'; ctx.font = '9px Space Mono'; ctx.textAlign = 'center';
+    ctx.fillText(lbl, pad.l + i * gap + gap / 2, h - 8);
+    ctx.fillStyle = colors[i]; ctx.font = '8px Space Mono';
+    ctx.fillText('$' + data[i], pad.l + i * gap + gap / 2, y - 4);
+  });
+  // y axis
+  ctx.strokeStyle = '#1e2535'; ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 3; i++) {
+    const y = pad.t + (ch / 3) * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    const val = maxV - (maxV / 3) * i;
+    ctx.fillStyle = '#6b7a99'; ctx.font = '9px Space Mono'; ctx.textAlign = 'right';
+    ctx.fillText('$' + Math.round(val), pad.l - 4, y + 3);
+  }
+}
+
+// Generate time series
+function genSeries(n, base, start='2020-01-01') {
+  const vals = [], lbls = [];
+  let d = new Date(start);
+  for (let i = 0; i < n; i++) {
+    vals.push(predictSales(d, base, 0));
+    lbls.push(d.toLocaleDateString('en',{month:'short',day:'numeric'}));
+    d.setDate(d.getDate() + 1);
+  }
+  return { vals, lbls };
+}
+
+// ========== FORECAST ENGINE ==========
+let forecastChartInstance = null;
+
+function runForecast() {
+  const startDateStr = document.getElementById('startDate').value;
+  const days = parseInt(document.getElementById('forecastDays').value);
+  const catName = document.getElementById('catSelect').value;
+  const promo = parseInt(document.getElementById('promoSelect').value);
+
+  const catObj = catName === 'all'
+    ? { base: 1326, color: '#00f5d4', name: 'All Categories' }
+    : CATEGORIES.find(c => c.name === catName) || { base: 1326, color: '#00f5d4', name: catName };
+
+  const forecasts = [];
+  let d = new Date(startDateStr);
+  for (let i = 0; i < days; i++) {
+    const sales = predictSales(d, catObj.base, promo);
+    forecasts.push({ date: new Date(d), sales });
+    d.setDate(d.getDate() + 1);
+  }
+
+  const total = forecasts.reduce((s, r) => s + r.sales, 0);
+  const avg = Math.round(total / days);
+  const peak = Math.max(...forecasts.map(r => r.sales));
+  const first = forecasts[0].sales;
+  const last = forecasts[forecasts.length - 1].sales;
+  const growth = ((last - first) / first * 100).toFixed(1);
+  const conf = promo ? '94%' : '90%';
+
+  document.getElementById('resultTotal').textContent = '$' + total.toLocaleString();
+  document.getElementById('resultAvg').textContent = '$' + avg.toLocaleString();
+  document.getElementById('resultPeak').textContent = '$' + peak.toLocaleString();
+  document.getElementById('resultGrowth').textContent = (growth > 0 ? '+' : '') + growth + '%';
+  document.getElementById('resultConf').textContent = conf;
+  document.getElementById('resultCard').classList.add('show');
+
+  // Chart
+  document.getElementById('forecastChartWrap').style.display = 'block';
+  const fLabels = forecasts.map(r => r.date.toLocaleDateString('en',{month:'short',day:'numeric'}));
+  const fVals = forecasts.map(r => r.sales);
+  document.getElementById('forecastChartTitle').textContent =
+    `${catObj.name.toUpperCase()} — ${days}-DAY FORECAST (${startDateStr})`;
+
+  setTimeout(() => {
+    makeLineChart('forecastChart', fLabels, [
+      { data: fVals, color: catObj.color, fill: true }
+    ], { prefix: '$' });
+  }, 50);
+
+  // Table
+  document.getElementById('forecastTableWrap').style.display = 'block';
+  document.getElementById('forecastTableLabel').textContent = catObj.name.toUpperCase();
+  const rows = document.getElementById('forecastRows');
+  rows.innerHTML = '';
+  forecasts.forEach((r, i) => {
+    const prev = i > 0 ? forecasts[i-1].sales : r.sales;
+    const trend = r.sales > prev ? '↑' : r.sales < prev ? '↓' : '→';
+    const trendColor = r.sales > prev ? 'var(--green)' : r.sales < prev ? 'var(--red)' : 'var(--muted)';
+    const dow = DAYS_SHORT[r.date.getDay()];
+    const dateStr = r.date.toISOString().split('T')[0];
+    rows.innerHTML += `
+      <div class="forecast-row">
+        <div class="forecast-day">${dow}</div>
+        <div class="forecast-date">${dateStr}</div>
+        <div class="forecast-val" style="color:${catObj.color}">$${r.sales.toLocaleString()}</div>
+        <div class="forecast-trend" style="color:${trendColor}">${trend}</div>
+      </div>
+    `;
+  });
+}
+
+// ========== PANEL SWITCHER ==========
+function showPanel(n, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.step-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel'+n).classList.add('active');
+  btn.classList.add('active');
+  setTimeout(renderChartsForPanel, 80, n);
+}
+
+function renderChartsForPanel(n) {
+  if (n === 1) {
+    const { vals, lbls } = genSeries(100, 1326);
+    makeLineChart('rawChart', lbls, [{ data: vals, color: '#00f5d4', fill: true }], { prefix: '$' });
+  }
+  if (n === 2) {
+    const { vals: v1, lbls } = genSeries(60, 1326);
+    const v2 = v1.map(v => v + Math.round((Math.random()-0.5)*30));
+    makeLineChart('cleanChart', lbls, [
+      { data: v1, color: '#ff4d6d', fill: false },
+      { data: v2, color: '#00f5d4', fill: true }
+    ], { prefix: '$' });
+  }
+  if (n === 3) {
+    makeBarChart('catChart',
+      CATEGORIES.map(c => c.name.substring(0,5)),
+      CATEGORIES.map(c => c.base),
+      CATEGORIES.map(c => c.color)
+    );
+  }
+  if (n === 4) {
+    const train = genSeries(80, 1326).vals;
+    const test = [...Array(80)].map((_,i) => i < 64 ? null : predictSales(new Date(2024,0,i), 1326, 0));
+    const lbls = genSeries(80, 1326).lbls;
+    makeLineChart('splitChart', lbls, [
+      { data: train.slice(0,64), color: '#00f5d4', fill: true },
+      { data: train.slice(64).map(v=>v), color: '#ff6b35', fill: true }
+    ], { prefix: '$' });
+  }
+  if (n === 5) {
+    const loss = Array.from({length:30}, (_,i) => Math.round(200 * Math.exp(-i*0.1) + 50 + Math.random()*10));
+    const lbls = Array.from({length:30}, (_,i) => 'E'+(i*16));
+    makeLineChart('lossChart', lbls, [{ data: loss, color: '#ffe600', fill: true }]);
+  }
+  if (n === 6) {
+    const actual = genSeries(40, 1326).vals;
+    const predicted = actual.map(v => Math.round(v * (0.93 + Math.random()*0.14)));
+    const lbls = genSeries(40, 1326).lbls;
+    makeLineChart('evalChart', lbls, [
+      { data: actual, color: '#00f5d4', fill: false },
+      { data: predicted, color: '#b06dff', fill: false }
+    ], { prefix: '$' });
+  }
+}
+
+// Init
+setTimeout(() => renderChartsForPanel(1), 100);
+</script>
+</body>
+</html>
